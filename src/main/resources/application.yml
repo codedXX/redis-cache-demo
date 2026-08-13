@@ -15,6 +15,12 @@ spring:
   cache:
     type: redis
 
+app:
+  bloom-filter:
+    name: products:bloom
+    expected-insertions: 100000
+    false-positive-probability: 0.01
+
 mybatis:
   mapper-locations: classpath:mapper/*.xml
 

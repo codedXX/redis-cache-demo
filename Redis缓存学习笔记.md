@@ -1,6 +1,49 @@
 # Spring Boot Redis 缓存学习笔记
 
-本文以当前项目的商品查询接口为例，介绍 Spring Cache 与 Redis 的分工、常用缓存注解，以及查询、更新、删除时的完整缓存流程。
+本文以当前项目的商品查询接口为例，介绍 Spring Cache、Redis 分布式布隆过滤器的分工、常用缓存注解，以及查询、更新、删除时的完整缓存流程。
+
+## Redis 分布式布隆过滤器
+
+项目使用 Redisson `RBloomFilter<Long>`，过滤器名称为 `products:bloom`。应用启动时通过 MyBatis `ProductMapper.selectAllIds()` 读取商品 ID 并初始化过滤器；查询商品时，布隆过滤器返回“确定不存在”就直接返回 404，返回“可能存在”才继续走 Spring Cache 和 MySQL。
+
+布隆过滤器存在误判特性：可能把不存在的 ID 判断为“可能存在”，但不会把已加入的真实商品判断为“确定不存在”。因此数据库仍是最终事实来源。新增商品后要调用 `ProductBloomFilter.add(id)` 写入过滤器；普通布隆过滤器不支持删除，删除后的 ID 由数据库最终校验。
+
+布隆过滤器有两个重要时机：
+
+1. **写入时：计算位置并把位置改为 1。**
+   - 应用启动时，从 MySQL 读取所有商品 ID，例如 `1、2、3`。
+   - 每个 ID 经过多个哈希计算，得到多个位置。
+   - 将这些位置设置为 1，写入 Redis 布隆过滤器。
+   - 新增商品时也要执行同样操作：先保存商品，再调用 `ProductBloomFilter.add(id)`。
+
+2. **查询时：只计算位置并检查，不修改位置。**
+   - 查询商品 ID 时，再次计算该 ID 对应的多个位置。
+   - 只要有一个位置是 0，就能确定该 ID 没有写入过，直接返回 404，不查 MySQL。
+   - 如果所有位置都是 1，只能说明“可能存在”，还要继续查询缓存或 MySQL，由数据库最终确认。
+
+因此，查询一个已经存在的商品 `1` 时，布隆过滤器只负责检查；查询不存在的商品 `999` 时，也不会因为查询而把它写入布隆过滤器。
+
+过滤器容量和误判率可以在 `application.yml` 中调整：
+
+~~~yaml
+app:
+  bloom-filter:
+    name: products:bloom
+    expected-insertions: 100000
+    false-positive-probability: 0.01
+~~~
+
+查询链路：
+
+~~~text
+请求商品 ID
+  -> Spring Cache 检查 products::id
+  -> 缓存未命中后检查 Redis 布隆过滤器
+  -> 确定不存在：直接 404
+  -> 可能存在：MyBatis 查询 MySQL
+  -> 查到商品：回填 products::id
+  -> 查不到商品：仍返回 404
+~~~
 
 ## 一、整体关系
 

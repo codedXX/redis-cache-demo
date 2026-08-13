@@ -1,6 +1,7 @@
 package com.example.rediscache;
 
 import com.example.rediscache.mapper.ProductMapper;
+import com.example.rediscache.filter.ProductBloomFilter;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -39,9 +40,13 @@ class ProductControllerTest {
     @MockitoBean
     private ProductMapper productMapper;
 
+    @MockitoBean
+    private ProductBloomFilter productBloomFilter;
+
     @Test
     void firstHttpRequestReadsMapperAndSecondHttpRequestReadsCache() throws Exception {
         cacheManager.getCache("products").clear();
+        when(productBloomFilter.mightContain(1L)).thenReturn(true);
         when(productMapper.selectById(1L))
                 .thenReturn(new Product(1L, "Java 编程思想", new BigDecimal("88.00")));
 

@@ -4,6 +4,7 @@ import com.example.rediscache.mapper.ProductMapper;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 import com.example.rediscache.pojo.Product;
 import org.junit.jupiter.api.Test;
@@ -29,5 +30,10 @@ class ProductMapperTest {
         assertThat(product.getId()).isEqualTo(1L);
         assertThat(product.getName()).isEqualTo("Java 编程思想");
         assertThat(product.getPrice()).isEqualByComparingTo(new BigDecimal("88.00"));
+    }
+
+    @Test
+    void selectAllIdsReturnsProductIds() {
+        assertThat(productMapper.selectAllIds()).isEqualTo(List.of(1L));
     }
 }

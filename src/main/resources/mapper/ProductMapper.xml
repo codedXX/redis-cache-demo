@@ -15,4 +15,10 @@
         FROM products
         WHERE id = #{id}
     </select>
+
+    <select id="selectAllIds" resultType="long">
+        SELECT id
+        FROM products
+        ORDER BY id
+    </select>
 </mapper>
