@@ -16,6 +16,11 @@ spring:
     type: redis
 
 app:
+  cache:
+    mutex:
+      enabled: ${CACHE_MUTEX_ENABLED:false}
+      wait-time-ms: ${CACHE_MUTEX_WAIT_TIME_MS:3000}
+      lease-time-ms: ${CACHE_MUTEX_LEASE_TIME_MS:10000}
   bloom-filter:
     name: products:bloom
     expected-insertions: 100000

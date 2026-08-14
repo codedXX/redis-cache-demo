@@ -2,6 +2,12 @@ package com.example.rediscache;
 
 import com.example.rediscache.mapper.ProductMapper;
 import com.example.rediscache.filter.ProductBloomFilter;
+import org.redisson.api.RLock;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -17,6 +23,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.cache.CacheManager;
+import org.redisson.api.RedissonClient;
+import java.util.concurrent.TimeUnit;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -42,6 +50,17 @@ class ProductControllerTest {
 
     @MockitoBean
     private ProductBloomFilter productBloomFilter;
+
+    @MockitoBean
+    private RedissonClient redissonClient;
+
+    @org.junit.jupiter.api.BeforeEach
+    void setUpLock() throws Exception {
+        RLock lock = mock(RLock.class);
+        when(redissonClient.getLock(anyString())).thenReturn(lock);
+        doReturn(true).when(lock).tryLock(anyLong(), anyLong(), eq(TimeUnit.MILLISECONDS));
+        when(lock.isHeldByCurrentThread()).thenReturn(true);
+    }
 
     @Test
     void firstHttpRequestReadsMapperAndSecondHttpRequestReadsCache() throws Exception {
